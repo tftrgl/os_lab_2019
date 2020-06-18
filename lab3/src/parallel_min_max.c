@@ -103,6 +103,15 @@ int main(int argc, char **argv) {
   gettimeofday(&start_time, NULL);
 
   int (*fd)[2] = malloc(sizeof(int) * 2 * pnum);
+  for (int i = 0; i < pnum; i++)
+  {
+      if (pipe(fd[i])==-1) 
+          { 
+              printf("Pipe Failed\n");
+              return 1;
+          }
+  }
+
   for (int i = 0; i < pnum; i++) {
     pid_t child_pid = fork();
     if (child_pid >= 0) {
@@ -134,11 +143,6 @@ int main(int argc, char **argv) {
         else 
         {
           // use pipe here
-          if (pipe(fd[i])==-1) 
-          { 
-              printf("Pipe Failed\n");
-              return 1;
-          }
 
           struct MinMax min_max0 = GetMinMax(array, i*arrPart, (i+1)*arrPart);
           int max_len = 30;
@@ -150,9 +154,9 @@ int main(int argc, char **argv) {
           strcpy(buff, strMin);
           strcat(buff, " ");
           strcat(buff, strMax);
-          printf("%s", buff);
           close(fd[i][0]);
           write(fd[i][1], buff, max_len);
+          close(fd[i][1]);
         }
         return 0;
       }
@@ -165,10 +169,9 @@ int main(int argc, char **argv) {
   pid_t wpid;
   int status = 0;
   while ((wpid = wait(&status)) > 0);
-  while (active_child_processes > 0) {
+  /*while (active_child_processes > 0) {
     active_child_processes -= 1;
-  }
-
+  }*/
   struct MinMax min_max;
   min_max.min = INT_MAX;
   min_max.max = INT_MIN;
@@ -202,7 +205,10 @@ int main(int argc, char **argv) {
                     perror( "read failed" );
                     return 1;
                 }
-            scanf(buff, "%d %d", &min, &max);
+                char * token = strtok(buff, " ");
+                min = atoi(token);
+                token = strtok(NULL, " ");
+                max = atoi(token);
     }
 
     if (min < min_max.min) min_max.min = min;
