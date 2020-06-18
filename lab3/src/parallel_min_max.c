@@ -40,18 +40,27 @@ int main(int argc, char **argv) {
         switch (option_index) {
           case 0:
             seed = atoi(optarg);
-            // your code here
-            // error handling
+            if (seed <= 0) 
+            {
+                printf("Seed must be positive\n");
+                return 1;
+            }
             break;
           case 1:
             array_size = atoi(optarg);
-            // your code here
-            // error handling
+            if (array_size <= 0) 
+            {
+                printf("Array size must be positive\n");
+                return 1;
+            }
             break;
           case 2:
             pnum = atoi(optarg);
-            // your code here
-            // error handling
+            if (pnum <= 0) 
+            {
+                printf("Process number must be positive\n");
+                return 1;
+            }
             break;
           case 3:
             with_files = true;
@@ -59,6 +68,7 @@ int main(int argc, char **argv) {
 
           defalut:
             printf("Index %d is out of options\n", option_index);
+            break;
         }
         break;
       case 'f':
@@ -70,6 +80,7 @@ int main(int argc, char **argv) {
 
       default:
         printf("getopt returned character code 0%o?\n", c);
+        break;
     }
   }
 
@@ -91,6 +102,7 @@ int main(int argc, char **argv) {
   struct timeval start_time;
   gettimeofday(&start_time, NULL);
 
+  int (*fd)[2] = malloc(sizeof(int) * 2 * pnum);
   for (int i = 0; i < pnum; i++) {
     pid_t child_pid = fork();
     if (child_pid >= 0) {
@@ -98,13 +110,49 @@ int main(int argc, char **argv) {
       active_child_processes += 1;
       if (child_pid == 0) {
         // child process
-
-        // parallel somehow
+        int arrPart = array_size / pnum;
+        struct MinMax min_max0 = GetMinMax(array, i*arrPart, (i+1)*arrPart);
 
         if (with_files) {
-          // use files here
-        } else {
+            FILE * fp1;
+            FILE * fp2;
+            fp1 = fopen ("min.txt", "a");
+            fp2 = fopen ("max.txt",  "a");
+            if (fp1 != NULL && fp2 != NULL)
+            {
+                fprintf(fp1, " %d", min_max0.min);
+                fprintf(fp2, " %d", min_max0.max);
+                fclose(fp1);
+                fclose(fp2);
+            }
+            else 
+            {
+                printf("Could not open files for writing\n");
+                return 1;
+            }
+        } 
+        else 
+        {
           // use pipe here
+          if (pipe(fd[i])==-1) 
+          { 
+              printf("Pipe Failed\n");
+              return 1;
+          }
+
+          struct MinMax min_max0 = GetMinMax(array, i*arrPart, (i+1)*arrPart);
+          int max_len = 30;
+          char buff[max_len];
+          char strMin[max_len/2];
+          char strMax[max_len/2];
+          sprintf(strMin, "%d", min_max0.min);
+          sprintf(strMax, "%d", min_max0.max);
+          strcpy(buff, strMin);
+          strcat(buff, " ");
+          strcat(buff, strMax);
+          printf("%s", buff);
+          close(fd[i][0]);
+          write(fd[i][1], buff, max_len);
         }
         return 0;
       }
@@ -114,10 +162,10 @@ int main(int argc, char **argv) {
       return 1;
     }
   }
-
+  pid_t wpid;
+  int status = 0;
+  while ((wpid = wait(&status)) > 0);
   while (active_child_processes > 0) {
-    // your code here
-
     active_child_processes -= 1;
   }
 
@@ -130,9 +178,31 @@ int main(int argc, char **argv) {
     int max = INT_MIN;
 
     if (with_files) {
-      // read from files
+      FILE * fp1;
+      FILE * fp2;
+      fp1 = fopen ("min.txt", "r");
+      fp2 = fopen ("max.txt",  "r");
+      if (fp1 != NULL && fp2 != NULL)
+      {
+          fscanf(fp1, "%d", &min);
+          fscanf(fp2, "%d", &max);
+          fclose(fp1);
+          fclose(fp2);
+      }
+      else
+      {
+          printf("Could not open files for reading\n");
+          return 1;
+      }
+
     } else {
-      // read from pipes
+        char buff[30];
+            if ( read( fd[i][0], buff, sizeof(buff)) <= 0) //read from pipe
+                {
+                    perror( "read failed" );
+                    return 1;
+                }
+            scanf(buff, "%d %d", &min, &max);
     }
 
     if (min < min_max.min) min_max.min = min;
@@ -146,6 +216,7 @@ int main(int argc, char **argv) {
   elapsed_time += (finish_time.tv_usec - start_time.tv_usec) / 1000.0;
 
   free(array);
+  free(fd);
 
   printf("Min: %d\n", min_max.min);
   printf("Max: %d\n", min_max.max);
