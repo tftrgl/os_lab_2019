@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <signal.h>
 
 #include <sys/time.h>
 #include <sys/types.h>
@@ -14,6 +15,24 @@
 
 #include "find_min_max.h"
 #include "utils.h"
+
+volatile int active_child_processes = 0;
+volatile int* childIDs;
+
+void  ALARMhandler(int sig)
+{
+    printf("123");
+    int status = 0;
+    signal(SIGALRM, SIG_IGN);
+    while (active_child_processes > 0) 
+    {
+        kill(childIDs[active_child_processes-1], SIGKILL);
+        waitpid(childIDs[active_child_processes-1], &status, WNOHANG);
+        active_child_processes -= 1;
+    }
+    signal(SIGALRM, ALARMhandler);
+}
+
 
 int main(int argc, char **argv) {
   int seed = -1;
@@ -107,10 +126,11 @@ int main(int argc, char **argv) {
 
   int *array = malloc(sizeof(int) * array_size);
   GenerateArray(array, array_size, seed);
-  int active_child_processes = 0;
 
   struct timeval start_time;
   gettimeofday(&start_time, NULL);
+
+  childIDs = malloc(sizeof(int) * pnum);
 
   int (*fd)[2] = malloc(sizeof(int) * 2 * pnum);
   for (int i = 0; i < pnum; i++)
@@ -126,6 +146,10 @@ int main(int argc, char **argv) {
     pid_t child_pid = fork();
     if (child_pid >= 0) {
       // successful fork
+      if (child_pid > 0)
+      {
+          childIDs[active_child_processes] = child_pid;
+      }
       active_child_processes += 1;
       if (child_pid == 0) {
         // child process
@@ -178,7 +202,14 @@ int main(int argc, char **argv) {
   }
   pid_t wpid;
   int status = 0;
-  while ((wpid = wait(&status)) > 0);
+
+  if (timeout > 0)
+  {
+      signal(SIGALRM, ALARMhandler);
+      alarm(timeout);
+  }
+
+  //while ((wpid = wait(&status)) > 0);
   /*while (active_child_processes > 0) {
     active_child_processes -= 1;
   }*/
