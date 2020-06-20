@@ -50,6 +50,8 @@ int main(int argc, char **argv) {
   uint64_t mod = -1;
   char servers[255] = {'\0'}; // max filename length = 255
 
+  printf("hello\n");
+
   while (true) {
     int current_optind = optind ? optind : 1;
 
@@ -108,6 +110,7 @@ int main(int argc, char **argv) {
   FILE *serversFile;
   
   serversFile = fopen(servers, "r");
+  printf("%s\n",servers);
   if (serversFile == NULL)
   {
       printf("Could not open servers file");
@@ -117,8 +120,9 @@ int main(int argc, char **argv) {
   int port;
   unsigned int servers_num = 0;
   struct Server *to = malloc(sizeof(struct Server) * servers_num);
-  while (fscanf(serversFile, "%s:%d\n", buff, &port))
+  while (fscanf(serversFile, "%s:%d\n", buff, &port)!=EOF)
   {
+      printf("%s:%d", buff, port);
       to[0].port = port;
       memcpy(to[0].ip, buff, sizeof(buff));
       servers_num++;
@@ -137,7 +141,7 @@ int main(int argc, char **argv) {
     struct sockaddr_in server;
     server.sin_family = AF_INET;
     server.sin_port = htons(to[i].port);
-    server.sin_addr.s_addr = *((unsigned long *)hostname->h_addr);
+    server.sin_addr.s_addr = *((unsigned long *)hostname->h_addr_list[0]);
 
     sockets[i] = socket(AF_INET, SOCK_STREAM, 0);
     if (sockets[i] < 0) {
