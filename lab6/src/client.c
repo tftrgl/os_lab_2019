@@ -50,7 +50,6 @@ int main(int argc, char **argv) {
   uint64_t mod = -1;
   char servers[255] = {'\0'}; // max filename length = 255
 
-  printf("hello\n");
 
   while (true) {
     int current_optind = optind ? optind : 1;
@@ -110,7 +109,6 @@ int main(int argc, char **argv) {
   FILE *serversFile;
   
   serversFile = fopen(servers, "r");
-  printf("%s\n",servers);
   if (serversFile == NULL)
   {
       printf("Could not open servers file");
@@ -119,13 +117,15 @@ int main(int argc, char **argv) {
   char buff[255];
   int port;
   unsigned int servers_num = 0;
+  while (fscanf(serversFile, "%s %d\n", buff, &port)!=EOF) servers_num++;
+  rewind(serversFile);
   struct Server *to = malloc(sizeof(struct Server) * servers_num);
-  while (fscanf(serversFile, "%s:%d\n", buff, &port)!=EOF)
+  int count = 0;
+  while (fscanf(serversFile, "%s %d\n", buff, &port)!=EOF && count != 20)
   {
-      printf("%s:%d", buff, port);
-      to[0].port = port;
-      memcpy(to[0].ip, buff, sizeof(buff));
-      servers_num++;
+      to[count].port = port;
+      memcpy(to[count].ip, buff, sizeof(buff));
+      count++;
   }
 
 
@@ -153,8 +153,7 @@ int main(int argc, char **argv) {
       fprintf(stderr, "Connection failed\n");
       exit(1);
     }
-
-    uint64_t begin = i*k/servers_num;
+    uint64_t begin = 2 + i*k/servers_num;
     uint64_t end = (i+1)*k/servers_num;
 
     char task[sizeof(uint64_t) * 3];
